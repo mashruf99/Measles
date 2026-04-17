@@ -1,4 +1,7 @@
-tensorflow
-gradio
-numpy
-Pillow
+fastapi
+uvicorn
+tensorflow==2.10.0
+keras==2.10.0
+pillow
+numpy<2
+python-multipart
