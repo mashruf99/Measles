@@ -38,8 +38,6 @@ const SymptomChecker = () => {
   e.preventDefault();
   if (!image) { alert("Please upload an image first!"); return; }
   setLoading(true);
-
-  // ✅ আগে backend wake করুন
   try {
     await fetch(`${import.meta.env.VITE_API_URL}/`);
   } catch (_) {}
@@ -57,7 +55,6 @@ const SymptomChecker = () => {
   formData.append("koplikSpots", toBangla(metadata.koplikSpots));
 
   try {
-    // ✅ AbortController দিয়ে 2 মিনিট timeout
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000);
 
@@ -200,7 +197,6 @@ const SymptomChecker = () => {
                   </div>
                 </div>
 
-                {/* Submit */}
                 <button
                   type="submit"
                   disabled={loading || !image}
