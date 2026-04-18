@@ -6,6 +6,8 @@ from PIL import Image
 from fastapi import FastAPI, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 
+print("🚀 App starting...")
+
 class SafeDense(Dense):
     @classmethod
     def from_config(cls, config):
@@ -27,19 +29,19 @@ CLASS_NAMES = ['Healthy', 'Measles', 'Non-Measles']
 
 def load_final_model(path):
     try:
-        print("Attempting to load full model...")
+        print("📦 Attempting to load full model...")
         loaded = tf.keras.models.load_model(
             path,
             custom_objects={'Dense': SafeDense},
             compile=False
         )
-        print("Full model loaded successfully!")
+        print("✅ Full model loaded successfully!")
         return loaded
     except Exception as e:
-        print(f"Full model load failed: {e}")
+        print(f"❌ Full model load failed: {e}")
 
     try:
-        print("Trying legacy Keras format...")
+        print("📦 Trying legacy Keras format...")
         loaded = tf.keras.models.load_model(
             path,
             compile=False,
@@ -47,13 +49,13 @@ def load_final_model(path):
                 experimental_io_device='/job:localhost'
             )
         )
-        print("Legacy load successful!")
+        print("✅ Legacy load successful!")
         return loaded
     except Exception as e:
-        print(f"Legacy load failed: {e}")
+        print(f"❌ Legacy load failed: {e}")
 
     try:
-        print("Trying with custom InputLayer fix...")
+        print("📦 Trying with custom InputLayer fix...")
         import keras
         from keras.layers import InputLayer
 
@@ -72,11 +74,21 @@ def load_final_model(path):
             },
             compile=False
         )
-        print("Compat load successful!")
+        print("✅ Compat load successful!")
         return loaded
     except Exception as e:
-        print(f"Compat load failed: {e}")
+        print(f"❌ Compat load failed: {e}")
         return None
+
+
+print("🔄 Loading model...")
+model = load_final_model(MODEL_PATH)
+
+if model is None:
+    print("🚨 MODEL LOAD FAILED")
+else:
+    print("🎯 MODEL LOADED SUCCESSFULLY")
+
 
 def prepare_image(img_bytes):
     try:
@@ -86,15 +98,29 @@ def prepare_image(img_bytes):
         img_array = np.expand_dims(img_array, axis=0)
         return img_array
     except Exception as e:
-        print(f"Image processing error: {e}")
+        print(f"❌ Image processing error: {e}")
         return None
 
+
 def safe_float(val):
-    """float32 → Python float, NaN/Inf → 0.0"""
     f = float(val)
     if not (f == f) or f == float('inf') or f == float('-inf'):
         return 0.0
     return f
+
+
+# ✅ Root route
+@app.get("/")
+def root():
+    print("📍 Root endpoint hit")
+    return {"status": "API running"}
+
+
+# ✅ Health check (for Render)
+@app.get("/healthz")
+def health():
+    return {"status": "ok"}
+
 
 @app.post("/predict")
 async def predict(
@@ -105,6 +131,8 @@ async def predict(
     redEyes: str = Form("না"),
     koplikSpots: str = Form("না"),
 ):
+    print("📥 /predict called")
+
     if model is None:
         return {"error": "Model failed to load. Check terminal logs."}
 
@@ -114,7 +142,9 @@ async def predict(
         if processed_image is None:
             return {"error": "Image processing failed."}
 
+        print("🧠 Running prediction...")
         predictions = model.predict(processed_image)
+
         predictions = np.nan_to_num(predictions, nan=0.0, posinf=0.0, neginf=0.0)
 
         if predictions.sum() == 0:
@@ -122,7 +152,9 @@ async def predict(
 
         pred_idx = int(np.argmax(predictions[0]))
         label = CLASS_NAMES[pred_idx]
-        
+
+        print(f"📊 Prediction result: {label}")
+
         fever_score = 2 if fever == "তীব্র" else (1 if fever == "মৃদু" else 0)
         
         other_symptoms = [cough, runnyNose, redEyes, koplikSpots]
@@ -170,5 +202,5 @@ async def predict(
         }
 
     except Exception as e:
-        print(f"Logic error: {str(e)}")
+        print(f"❌ Logic error: {str(e)}")
         return {"error": str(e)}
