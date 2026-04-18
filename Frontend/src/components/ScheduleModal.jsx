@@ -52,8 +52,6 @@ const ScheduleModal = ({ child, onClose, onUpdate, onDelete }) => {
     });
 
     onUpdate(child.id, vaccinesToSave);
-
-    // ✅ Success alert for update
     Swal.fire({
       icon: "success",
       title: "Saved!",
