@@ -1,7 +1,6 @@
-//src/pages/SymptomChecker.jsx
-
+//pages/SymptomChecker.jsx
 import React, { useState } from 'react';
-import { HiOutlineCloudUpload, HiOutlineShieldCheck, HiOutlineExclamation } from 'react-icons/hi';
+import { HiOutlineCloudUpload, HiOutlineShieldCheck } from 'react-icons/hi';
 
 const SymptomChecker = () => {
   const [image, setImage] = useState(null);
@@ -9,15 +8,12 @@ const SymptomChecker = () => {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
 
-  
   const [metadata, setMetadata] = useState({
-    fever: 'no',
+    fever: "no",
     cough: false,
     runnyNose: false,
     redEyes: false,
-    koplikSpots: false, 
-    rashStartedAt: 'face', 
-    duration: '',
+    koplikSpots: false,
   });
 
   const handleImageChange = (e) => {
@@ -25,132 +21,206 @@ const SymptomChecker = () => {
     if (file) {
       setImage(file);
       setPreview(URL.createObjectURL(file));
+      setResult(null);
     }
   };
 
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setMetadata(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+  const handleCheckbox = (e) => {
+    const { name, checked } = e.target;
+    setMetadata(prev => ({ ...prev, [name]: checked }));
+  };
+
+  const handleFever = (e) => {
+    setMetadata(prev => ({ ...prev, fever: e.target.value }));
   };
 
   const analyzeSymptoms = async (e) => {
     e.preventDefault();
+    if (!image) { alert("Please upload an image first!"); return; }
+
     setLoading(true);
-    
-    
-    setTimeout(() => {
-      setResult({
-        probability: 85,
-        suggestion: "The symptoms and image highly correlate with Measles. Please consult a doctor immediately.",
-        precautions: ["Isolate the child", "Ensure hydration", "Monitor fever"]
+
+    const formData = new FormData();
+    formData.append("file", image);
+
+    const toBangla = (val) => val ? "হ্যাঁ" : "না";
+    const feverMap = {
+      "no": "না",
+      "mild": "মৃদু",
+      "high": "তীব্র"
+    };
+
+    formData.append("fever",       feverMap[metadata.fever]);
+    formData.append("cough",       toBangla(metadata.cough));
+    formData.append("runnyNose",   toBangla(metadata.runnyNose));
+    formData.append("redEyes",     toBangla(metadata.redEyes));
+    formData.append("koplikSpots", toBangla(metadata.koplikSpots));
+
+    try {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/predict`, {
+        method: "POST",
+        body: formData
       });
-      setLoading(false);
-    }, 2000);
+
+      const data = await res.json();
+      console.log("Response:", data);
+
+      if (!res.ok || data.error) {
+        alert(data?.error || "Server error");
+        setLoading(false);
+        return;
+      }
+
+      setResult(data);
+    } catch (err) {
+      console.error("Fetch error:", err);
+      alert("AI server সংযোগ ব্যর্থ! Backend চালু আছে কিনা দেখুন।");
+    }
+
+    setLoading(false);
+  };
+
+  const formatText = (text) => {
+    const labels = {
+      cough: "কাশি",
+      runnyNose: "সর্দি",
+      redEyes: "চোখ লাল",
+      koplikSpots: "মুখের ভেতরে সাদা দানা"
+    };
+    return labels[text] || text;
+  };
+
+  const statusStyle = {
+    red:    "bg-red-50 border-red-300 text-red-800",
+    orange: "bg-orange-50 border-orange-300 text-orange-800",
+    green:  "bg-emerald-50 border-emerald-300 text-emerald-800",
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8 pb-10">
-      <div className="text-center space-y-2">
-        <h2 className="text-3xl font-black text-gray-800">AI Symptom Evaluator</h2>
-        <p className="text-gray-500">Upload a photo of the rash and answer a few questions for a detailed analysis.</p>
+    <div className="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-5xl mx-auto space-y-10">
+
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center justify-center p-3 bg-emerald-100 rounded-full mb-2 shadow-sm">
+            <HiOutlineShieldCheck className="w-8 h-8 text-emerald-600" />
+          </div>
+          <h2 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+            Measles <span className="text-emerald-600">AI Evaluator</span>
+          </h2>
+          <p className="text-gray-500 max-w-xl mx-auto text-lg">
+            ছবি এবং লক্ষণ দিয়ে AI-powered হাম সনাক্তকরণ।
+          </p>
+        </div>
+
+        <div className="bg-white shadow-2xl border border-gray-100 overflow-hidden rounded-2xl">
+          <form onSubmit={analyzeSymptoms} className="flex flex-col lg:flex-row w-full">
+
+            <div className="lg:w-1/2 p-8 bg-gray-50 flex flex-col gap-4 border-r border-gray-100">
+              <h3 className="text-lg font-bold text-gray-800 border-b pb-2">রোগীর ছবি</h3>
+
+              {!preview ? (
+                <label className="flex flex-col items-center justify-center w-full h-64 border-2 border-emerald-300 border-dashed rounded-xl cursor-pointer bg-white hover:bg-emerald-50 transition-all duration-200">
+                  <HiOutlineCloudUpload className="w-14 h-14 text-emerald-500 mb-3" />
+                  <p className="text-sm text-gray-500">
+                    <span className="text-emerald-600 font-bold">ছবি আপলোড করুন</span>
+                  </p>
+                  <input type="file" className="hidden" accept="image/*" onChange={handleImageChange} />
+                </label>
+              ) : (
+                <div className="relative">
+                  <img src={preview} alt="preview" className="rounded-xl h-64 w-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => { setPreview(null); setImage(null); setResult(null); }}
+                    className="absolute top-2 right-2 bg-white rounded-full px-2 py-1 text-xs text-red-500 shadow"
+                  >
+                    ✕ সরান
+                  </button>
+                </div>
+              )}
+
+              {result && (
+                <div className={`mt-2 p-5 rounded-xl border-2 ${statusStyle[result.status_color]}`}>
+                  <div className="flex justify-between items-center mb-1">
+                    <h3 className="text-xl font-bold">{result.prediction}</h3>
+                  </div>
+                  
+                  <p className="text-sm mt-2">{result.recommendation}</p>
+
+                  {result.precautions && (
+                    <ul className="mt-4 text-sm list-disc list-inside space-y-1">
+                      {result.precautions.map((p, i) => <li key={i}>{p}</li>)}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="lg:w-1/2 p-8 bg-white">
+              <div className="space-y-6">
+                <h3 className="text-lg font-bold text-gray-800 border-b pb-2">লক্ষণ নির্বাচন</h3>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">জ্বর</label>
+                  <select
+                    name="fever"
+                    onChange={handleFever}
+                    value={metadata.fever} 
+                    className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-400 outline-none"
+                  >
+                    <option value="no">নেই</option>
+                    <option value="mild">মৃদু</option>
+                    <option value="high">তীব্র</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">অন্যান্য লক্ষণ</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {["cough", "runnyNose", "redEyes", "koplikSpots"].map(symptom => (
+                      <label
+                        key={symptom}
+                        className="flex items-center gap-2 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-emerald-50 transition-all text-sm"
+                      >
+                        <input
+                          type="checkbox"
+                          name={symptom}
+                          checked={metadata[symptom]} 
+                          onChange={handleCheckbox}
+                          className="accent-emerald-500 w-4 h-4"
+                        />
+                        {formatText(symptom)}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Submit */}
+                <button
+                  type="submit"
+                  disabled={loading || !image}
+                  className="w-full py-3 px-6 bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300 text-white font-bold rounded-xl transition-all duration-200 text-sm"
+                >
+                  {loading ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                      </svg>
+                      বিশ্লেষণ হচ্ছে...
+                    </span>
+                  ) : "AI দিয়ে বিশ্লেষণ করুন"}
+                </button>
+
+                <p className="text-xs text-gray-400 text-center">
+                  * এটি শুধুমাত্র প্রাথমিক ধারণা দেওয়ার জন্য। চিকিৎসকের পরামর্শ নিন।
+                </p>
+              </div>
+            </div>
+
+          </form>
+        </div>
       </div>
-
-      <form onSubmit={analyzeSymptoms} className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        
-        <div className="space-y-6">
-          <div className="bg-white p-6 rounded-3xl border-2 border-dashed border-gray-200 hover:border-emerald-400 transition-all text-center">
-            {preview ? (
-              <div className="relative">
-                <img src={preview} alt="Rash Preview" className="rounded-2xl max-h-64 mx-auto shadow-md" />
-                <button 
-                  onClick={() => {setImage(null); setPreview(null);}}
-                  className="absolute -top-2 -right-2 bg-rose-500 text-white p-1 rounded-full shadow-lg"
-                >✕</button>
-              </div>
-            ) : (
-              <label className="cursor-pointer block py-10">
-                <HiOutlineCloudUpload className="text-5xl text-gray-300 mx-auto mb-4" />
-                <p className="text-sm font-bold text-gray-500">Upload Rash Photo</p>
-                <input type="file" className="hidden" onChange={handleImageChange} accept="image/*" />
-              </label>
-            )}
-          </div>
-
-
-          {result && (
-            <div className="bg-emerald-50 border border-emerald-100 p-6 rounded-3xl animate-in slide-in-from-bottom duration-500">
-              <div className="flex items-center gap-2 text-emerald-700 font-bold mb-3">
-                <HiOutlineShieldCheck className="text-xl" /> AI Analysis Result
-              </div>
-              <p className="text-2xl font-black text-emerald-800 mb-2">{result.probability}% Match</p>
-              <p className="text-sm text-emerald-700 leading-relaxed mb-4">{result.suggestion}</p>
-              <div className="space-y-1">
-                {result.precautions.map((p, i) => (
-                  <p key={i} className="text-xs text-emerald-600 flex items-center gap-2">• {p}</p>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-
-        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-xl shadow-gray-100/50 space-y-6">
-          <h4 className="font-bold text-gray-800 flex items-center gap-2">
-            <HiOutlineExclamation className="text-amber-500" /> Clinical Indicators
-          </h4>
-
-          <div className="space-y-4">
-            <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">High Fever (101°F+)?</label>
-              <select name="fever" onChange={handleInputChange} className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20">
-                <option value="no">No Fever</option>
-                <option value="mild">Mild (99-100°F)</option>
-                <option value="high">High (101°F+)</option>
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer">
-                <input type="checkbox" name="cough" onChange={handleInputChange} className="accent-emerald-500 w-4 h-4" />
-                <span className="text-xs font-bold text-gray-600">Dry Cough</span>
-              </label>
-              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer">
-                <input type="checkbox" name="runnyNose" onChange={handleInputChange} className="accent-emerald-500 w-4 h-4" />
-                <span className="text-xs font-bold text-gray-600">Runny Nose</span>
-              </label>
-              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer">
-                <input type="checkbox" name="redEyes" onChange={handleInputChange} className="accent-emerald-500 w-4 h-4" />
-                <span className="text-xs font-bold text-gray-600">Red/Watery Eyes</span>
-              </label>
-              <label className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl cursor-pointer">
-                <input type="checkbox" name="koplikSpots" onChange={handleInputChange} className="accent-emerald-500 w-4 h-4" />
-                <span className="text-xs font-bold text-gray-600">White Spots inside mouth</span>
-              </label>
-            </div>
-
-            <div>
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest block mb-2">Where did the rash start?</label>
-              <select name="rashStartedAt" onChange={handleInputChange} className="w-full p-3 bg-gray-50 border border-gray-100 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500/20">
-                <option value="face">Face & Hairline</option>
-                <option value="trunk">Chest / Back</option>
-                <option value="arms">Arms / Legs</option>
-              </select>
-            </div>
-          </div>
-
-          <button 
-            type="submit" 
-            disabled={loading || !image}
-            className="w-full bg-gray-900 text-white py-4 rounded-2xl font-black uppercase tracking-widest hover:bg-emerald-600 transition-all disabled:bg-gray-200"
-          >
-            {loading ? "AI is Analyzing..." : "Run AI Diagnostics"}
-          </button>
-        </div>
-
-      </form>
     </div>
   );
 };
