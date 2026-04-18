@@ -12,6 +12,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.39.0",
     "i18next": "^23.0.0",
+    "sweetalert2": "^11.0.0",
     "react-i18next": "^14.0.0",
     "axios": "^1.14.0",
     "lucide-react": "^1.7.0",
