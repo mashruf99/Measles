@@ -34,51 +34,56 @@ const SymptomChecker = () => {
     setMetadata(prev => ({ ...prev, fever: e.target.value }));
   };
 
-  const analyzeSymptoms = async (e) => {
-    e.preventDefault();
-    if (!image) { alert("Please upload an image first!"); return; }
+ const analyzeSymptoms = async (e) => {
+  e.preventDefault();
+  if (!image) { alert("Please upload an image first!"); return; }
+  setLoading(true);
 
-    setLoading(true);
+  // ✅ আগে backend wake করুন
+  try {
+    await fetch(`${import.meta.env.VITE_API_URL}/`);
+  } catch (_) {}
 
-    const formData = new FormData();
-    formData.append("file", image);
+  const formData = new FormData();
+  formData.append("file", image);
 
-    const toBangla = (val) => val ? "হ্যাঁ" : "না";
-    const feverMap = {
-      "no": "না",
-      "mild": "মৃদু",
-      "high": "তীব্র"
-    };
+  const toBangla = (val) => val ? "হ্যাঁ" : "না";
+  const feverMap = { "no": "না", "mild": "মৃদু", "high": "তীব্র" };
 
-    formData.append("fever",       feverMap[metadata.fever]);
-    formData.append("cough",       toBangla(metadata.cough));
-    formData.append("runnyNose",   toBangla(metadata.runnyNose));
-    formData.append("redEyes",     toBangla(metadata.redEyes));
-    formData.append("koplikSpots", toBangla(metadata.koplikSpots));
+  formData.append("fever",       feverMap[metadata.fever]);
+  formData.append("cough",       toBangla(metadata.cough));
+  formData.append("runnyNose",   toBangla(metadata.runnyNose));
+  formData.append("redEyes",     toBangla(metadata.redEyes));
+  formData.append("koplikSpots", toBangla(metadata.koplikSpots));
 
-    try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/predict`, {
-        method: "POST",
-        body: formData
-      });
+  try {
+    // ✅ AbortController দিয়ে 2 মিনিট timeout
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120000);
 
-      const data = await res.json();
-      console.log("Response:", data);
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/predict`, {
+      method: "POST",
+      body: formData,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
 
-      if (!res.ok || data.error) {
-        alert(data?.error || "Server error");
-        setLoading(false);
-        return;
-      }
-
-      setResult(data);
-    } catch (err) {
-      console.error("Fetch error:", err);
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      alert(data?.error || "Server error");
+      setLoading(false);
+      return;
+    }
+    setResult(data);
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      alert("সার্ভার সাড়া দিতে দেরি হচ্ছে। একটু পরে আবার চেষ্টা করুন।");
+    } else {
       alert("AI server সংযোগ ব্যর্থ! Backend চালু আছে কিনা দেখুন।");
     }
-
-    setLoading(false);
-  };
+  }
+  setLoading(false);
+};
 
   const formatText = (text) => {
     const labels = {
