@@ -10,7 +10,6 @@ const Sidebar = ({ isOpen, onClose }) => {
 
   return (
     <>
-      {/* Mobile overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/40 z-30 md:hidden"
@@ -21,8 +20,7 @@ const Sidebar = ({ isOpen, onClose }) => {
       {/* Sidebar */}
       <div className={`fixed flex flex-col w-72 h-screen bg-white border-r border-gray-100 p-6 z-40 transition-transform duration-300
         ${isOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0`}>
-        
-        {/* Mobile close button */}
+    
         <button
           onClick={onClose}
           className="absolute top-4 right-4 md:hidden text-gray-400 hover:text-gray-700"
