@@ -29,17 +29,54 @@ def load_final_model(path):
     try:
         print("Attempting to load full model...")
         loaded = tf.keras.models.load_model(
-            path, 
-            custom_objects={'Dense': SafeDense}, 
+            path,
+            custom_objects={'Dense': SafeDense},
             compile=False
         )
         print("Full model loaded successfully!")
         return loaded
     except Exception as e:
         print(f"Full model load failed: {e}")
-        return None
 
-model = load_final_model(MODEL_PATH)
+    try:
+        print("Trying legacy Keras format...")
+        loaded = tf.keras.models.load_model(
+            path,
+            compile=False,
+            options=tf.saved_model.LoadOptions(
+                experimental_io_device='/job:localhost'
+            )
+        )
+        print("Legacy load successful!")
+        return loaded
+    except Exception as e:
+        print(f"Legacy load failed: {e}")
+
+    try:
+        print("Trying with custom InputLayer fix...")
+        import keras
+        from keras.layers import InputLayer
+
+        class CompatInputLayer(InputLayer):
+            @classmethod
+            def from_config(cls, config):
+                config.pop('batch_shape', None)
+                config.pop('optional', None)
+                return super().from_config(config)
+
+        loaded = tf.keras.models.load_model(
+            path,
+            custom_objects={
+                'Dense': SafeDense,
+                'InputLayer': CompatInputLayer
+            },
+            compile=False
+        )
+        print("Compat load successful!")
+        return loaded
+    except Exception as e:
+        print(f"Compat load failed: {e}")
+        return None
 
 def prepare_image(img_bytes):
     try:
